@@ -46,6 +46,10 @@ MonoBehaviour:
   - Rpc_ReceiveHidingState
   - Rpc_ReceiveHuntingState
   - RPC_ReceivePlayerInfo
+  - Rpc_ReceiveUpdateReadyState
+  - Rpc_ReceivePlayerInfo
+  - Rpc_ReceiveHideState
+  - Rpc_ReceiveResultState
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

@@ -14,14 +14,14 @@ public class RpcExcute : MonoBehaviourPunCallbacks
         instance = this;
     }
 
-    public void RPC_SendPlayerInfo(int phottonViewId)
+    public void Rpc_SendPlayerInfo(int phottonViewId)
     {
-        base.photonView.RPC("RPC_ReceivePlayerInfo", RpcTarget.OthersBuffered, PhotonNetwork.LocalPlayer, phottonViewId);
+        base.photonView.RPC("Rpc_ReceivePlayerInfo", RpcTarget.OthersBuffered, PhotonNetwork.LocalPlayer, phottonViewId);
     }
 
-    public void RPC_SendUpdateReadyState(bool isReady)
+    public void Rpc_SendUpdateReadyState(bool isReady)
     {
-        base.photonView.RPC("RPC_ReceiveUpdateReadyState", RpcTarget.AllBuffered, PhotonNetwork.LocalPlayer, isReady);
+        base.photonView.RPC("Rpc_ReceiveUpdateReadyState", RpcTarget.AllBuffered, PhotonNetwork.LocalPlayer, isReady);
     }
     public void Rpc_SendGameStarting(Seek[] seekList)
     {
@@ -42,19 +42,23 @@ public class RpcExcute : MonoBehaviourPunCallbacks
 
     public void Rpc_SendResult()
     {
+        base.photonView.RPC("Rpc_ReceiveHuntingState", RpcTarget.All);
+    }
 
+    public void Rpc_SendHideInJar(bool isHide, int hideId)
+    {
+        base.photonView.RPC("Rpc_ReceiveHideState", RpcTarget.All, PhotonNetwork.LocalPlayer, isHide, hideId);
     }
 
     #region Receive
     [PunRPC]
-    private void RPC_ReceivePlayerInfo(Player player, int viewId)
+    private void Rpc_ReceivePlayerInfo(Player player, int viewId)
     {
-        Debug.Log($"Add {player.UserId}");
-        GameManager.Instance.CharacterManager.viewIds.Add(player.UserId, viewId);
+        GameManager.Instance.Lobby.ReceiveViewId(player.UserId, viewId);
     }
 
     [PunRPC]
-    private void RPC_ReceiveUpdateReadyState(Player player, bool isReady)
+    private void Rpc_ReceiveUpdateReadyState(Player player, bool isReady)
     {
         GameManager.Instance.GameController.UpdateReadyState(player.UserId, isReady);       
     }
@@ -62,7 +66,7 @@ public class RpcExcute : MonoBehaviourPunCallbacks
     [PunRPC]
     private void Rpc_ReceiveGameStarting(string seekList)
     {
-        GameManager.Instance.GameController.SetupSeek(seekList);
+        GameManager.Instance.GameController.SetupGameData(seekList);
         GameManager.Instance.ChageState(StateType.Prepare);
     }
 
@@ -76,6 +80,18 @@ public class RpcExcute : MonoBehaviourPunCallbacks
     private void Rpc_ReceiveHuntingState()
     {
         GameManager.Instance.ChageState(StateType.Hunting);
+    }
+
+    [PunRPC]
+    private void Rpc_ReceiveResultState()
+    {
+        GameManager.Instance.ChageState(StateType.Result);
+    }
+
+    [PunRPC]
+    private void Rpc_ReceiveHideState(Player player, bool isHide, int hideId)
+    {
+        GameManager.Instance.GameController.SetPlayerHiding(player.UserId, isHide, hideId);
     }
     #endregion
 }

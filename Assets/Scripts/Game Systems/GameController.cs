@@ -16,11 +16,21 @@ public class GameController
 
     private Seek[] currentSeek = new Seek[0];
 
+    private string[] playerDeadInRound;
+
+    private bool IsSeek;
+
+    private int currentRound;
+    private int seekCount;
+    private int playerAlive;
+    private int playerCount;
+
     public void Initialize()
     {
         gameplayPanel.onStart = OnStartGame;
         gameplayPanel.onReady = OnReady;
         gameplayPanel.onLeave = OnLeaveRoom;
+        gameplayPanel.onAction = OnAction;
 
         GameManager.Instance.Lobby.onPlayerEntryRoom = OnPlayerEntryRoom;
         GameManager.Instance.Lobby.onPlayerLeaveRoom = OnPlayerLeftRoom;
@@ -56,7 +66,7 @@ public class GameController
     {
         if (PhotonNetwork.IsMasterClient)
             return;
-        RpcExcute.instance.RPC_SendUpdateReadyState(isReady);
+        RpcExcute.instance.Rpc_SendUpdateReadyState(isReady);
     }
 
     private void OnLeaveRoom()
@@ -70,6 +80,11 @@ public class GameController
         GameManager.Instance.BrowseController.Present();
     }
 
+    private void OnAction()
+    {
+        GameManager.Instance.CharacterManager.MainCharater.TriggerAction();
+    }
+
     public void UpdateReadyState(string actorNumber, bool isReady)
     {
         if (playersInLobby.TryGetValue(actorNumber, out var playerElement))
@@ -80,19 +95,7 @@ public class GameController
 
     public void OnPlayerEntryRoom(Player player)
     {
-        SetupPlayer(player);
         gameplayPanel.AddPlayerDisplay(player);
-    }
-
-    private async void SetupPlayer(Player player)
-    {
-       bool hasObject = GameManager.Instance.CharacterManager.viewIds.ContainsKey(player.UserId);
-
-        //await UniTask.WaitUntil(true);
-
-        int viewId = GameManager.Instance.CharacterManager.viewIds[player.UserId];
-        GameManager.Instance.CharacterManager.character[viewId].Setup(player);
-
     }
 
     public void OnPlayerLeftRoom(Player player)
@@ -105,46 +108,93 @@ public class GameController
     public void SetupPrepareState()
     {
         gameplayPanel.SetupStateDisplay("Show Role State");
-        gameplayPanel.ShowRole(BeSeek());
+        gameplayPanel.ShowRole(IsSeek);
+        GameManager.Instance.CharacterManager.MainCharater.SetupRole(IsSeek);
     }
 
     public void SetupHidingState()
     {
         gameplayPanel.SetupStateDisplay("Hiding State");
-        gameplayPanel.ShowHiding(BeSeek());
-        if (BeSeek())
+        
+        gameplayPanel.ShowHiding(IsSeek);
+
+        var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
+        mainCharacter.SetupHidingState();
+        if (IsSeek)
         {
-            GameManager.Instance.CharacterManager.MainCharater.SetMoveAble(false);
+            mainCharacter.SetMoveAble(false);
             return;
         }
-        GameManager.Instance.CharacterManager.MainCharater.SetMoveAble(true);
+        mainCharacter.SetMoveAble(true);
     }
 
-    public void SetupHuntingDisplay()
+    public void SetupHuntingState()
     {
         gameplayPanel.SetupStateDisplay("Hunting State");
         gameplayPanel.ShowHunting();
-        if (BeSeek())
+
+        var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
+        mainCharacter.SetupHuntingState();
+
+        if (IsSeek)
         {
-            GameManager.Instance.CharacterManager.MainCharater.SetMoveAble(true);
+            mainCharacter.SetMoveAble(true); 
             return;
         }
-        GameManager.Instance.CharacterManager.MainCharater.SetMoveAble(false);
+        mainCharacter.SetMoveAble(false);
     }
+
+    public void SetupResultState()
+    {
+        var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
+        mainCharacter.SetupHuntingState();
+        mainCharacter.SetMoveAble(false);
+
+        EndRound();
+    }
+
     #endregion
 
-    public void SetupSeek(string seeksData)
+    public void SetupGameData(string seeksData)
     {
         Seek[] seeks = JsonConvert.DeserializeObject<Seek[]>(seeksData);
         currentSeek = seeks;
+        IsSeek = BeSeek();
+
+        currentRound = 1;
+        seekCount = currentSeek.Length;
+        playerCount = playersInLobby.Count;
+        playerAlive = playerCount - seekCount;
     }
+
+    public void EndRound()  
+    {
+        if (currentRound >= 5)
+            return;
+
+        currentRound++;
+
+        if (playerAlive <= 0)
+        {
+            //Todo : show end game
+        }
+
+        if (PhotonNetwork.IsMasterClient)
+            return;
+
+        if (playerAlive <= 0)
+            RpcExcute.instance.Rpc_SendHidingState();
+        else
+            RpcExcute.instance.Rpc_SendHidingState();
+
+    }
+
 
     private bool BeSeek()
     {
         for (int i = 0; i < currentSeek.Length; i++)
         {
-            bool isSeek = currentSeek[i].userId.ToLower() == PhotonNetwork.LocalPlayer.UserId.ToLower();
-            Debug.Log($"{currentSeek[i].userId.ToLower()} : {PhotonNetwork.LocalPlayer.UserId.ToLower()} = {isSeek}");
+            bool isSeek = currentSeek[i].userId == PhotonNetwork.LocalPlayer.UserId;
             if (isSeek)
                 return true;
         }
@@ -173,5 +223,12 @@ public class GameController
         }
 
         return seekList;
+    }
+
+    public void SetPlayerHiding(string userId, bool isHide, int jarId)
+    {
+        var character = GameManager.Instance.CharacterManager.GetCharacterModel(userId);
+
+        character.SetHidigModel(isHide, jarId);
     }
 }

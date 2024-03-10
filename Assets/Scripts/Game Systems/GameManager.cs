@@ -18,6 +18,7 @@ public class GameManager : MonoBehaviour
     public GameController GameController = new();
 
     public CharacterManager CharacterManager = new();
+    public JarManager JarManager = new JarManager();
     public StateController GameStateController = new();
 
     private void Start()
@@ -28,6 +29,8 @@ public class GameManager : MonoBehaviour
         LoginController.Initialize();
         BrowseController.Initialize();
         GameController.Initialize();
+
+        JarManager.Initialize();
 
         LoginController.Present();
     }
@@ -70,10 +73,11 @@ public class LobbyState: State
 
         GameManager.Instance.CharacterManager.SpawnPlayer();
         int viewId = GameManager.Instance.CharacterManager.MainCharater.photonView.ViewID;
-        RpcExcute.instance.RPC_SendPlayerInfo(viewId);
+        RpcExcute.instance.Rpc_SendPlayerInfo(viewId);
+        RpcExcute.instance.Rpc_SendUpdateReadyState(false);
         if (PhotonNetwork.IsMasterClient)
         {
-            RpcExcute.instance.RPC_SendUpdateReadyState(true);
+            RpcExcute.instance.Rpc_SendUpdateReadyState(true);
         }
     }
 }
@@ -172,7 +176,7 @@ public class HuntingState : State
 
     public void ShowHuntingDisplay()
     {
-        GameManager.Instance.GameController.SetupHuntingDisplay();
+        GameManager.Instance.GameController.SetupHuntingState();
 
         stateCountDown.Start(GameConfig.HuntingDuration);
 
@@ -194,5 +198,38 @@ public class HuntingState : State
 
 public class ResultState : State
 {
+    private CountDown stateCountDown = new CountDown();
 
+    public override void EnterState()
+    {
+        base.EnterState();
+        ShowResulState();
+    }
+
+    public override void Update(float deltaTime)
+    {
+        base.Update(deltaTime);
+        stateCountDown.Update(deltaTime);
+    }
+
+    public void ShowResulState()
+    {
+        GameManager.Instance.GameController.SetupResultState();
+
+        stateCountDown.Start(GameConfig.ShowResultDuration);
+
+        stateCountDown.onUpdate = OnUpdate;
+        stateCountDown.onComplete = OnComplete;
+
+        void OnUpdate(float currentDuration)
+        {
+            UIManager.Instance.GameplayPanel.SetupStateDuration(currentDuration);
+        }
+
+        void OnComplete()
+        {
+            if (PhotonNetwork.IsMasterClient)
+                RpcExcute.instance.Rpc_SendHidingState();
+        }
+    }
 }

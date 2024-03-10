@@ -1,6 +1,5 @@
 using Photon.Pun;
 using Photon.Pun.UtilityScripts;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -13,8 +12,7 @@ public class CharacterManager
 
     public CharacterController MainCharater;
 
-    public Dictionary<int, CharacterController> character = new Dictionary<int, CharacterController>();
-    public Dictionary<string, int> viewIds = new Dictionary<string, int>();
+    public Dictionary<int, CharacterController> characterModels {get; private set;} = new Dictionary<int, CharacterController>();
 
     public void SpawnPlayer()
     {
@@ -22,6 +20,34 @@ public class CharacterManager
         PhotonNetwork.RegisterPhotonView(PlayerPrefab.photonView);
         var localPlayer = PhotonNetwork.Instantiate(PlayerPrefab.name, spawnPoint.position, Quaternion.identity);
         MainCharater = localPlayer.GetComponent<CharacterController>();
-        MainCharater.Setup(PhotonNetwork.LocalPlayer);
+        MainCharater.SetupPlayerData(PhotonNetwork.LocalPlayer);
+    }
+
+    public void AddCharacter(int viewId, CharacterController characterObject)
+    {
+        this.characterModels.Add(viewId, characterObject);
+
+        if(characterObject.playerInfo == default || characterObject.playerInfo == null)
+        {
+            string userId = GameManager.Instance.Lobby.playerDataViewIds[viewId];
+            var playerData = GameManager.Instance.Lobby.playerDataInMatch[userId];
+            characterObject.SetupPlayerData(playerData);
+        }  
+    }
+
+    public CharacterController GetCharacterModel(string userId)
+    {
+        foreach(var model in characterModels.Values)
+        {
+            if(model.playerInfo.UserId == userId)
+                return model;
+        }
+
+        return null;
+    }
+
+    public void ClearCharacterModel()
+    {
+        characterModels.Clear();
     }
 }

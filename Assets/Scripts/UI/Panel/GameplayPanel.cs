@@ -21,6 +21,7 @@ public class GameplayPanel : Panel
     [SerializeField] private Button startButton;
     [SerializeField] private Button readyButton;
     [SerializeField] private Button leaveButton;
+    [SerializeField] private Button actionButton;
     [Space]
     [SerializeField] private GameObject lobbyStateElement;
     [SerializeField] private GameObject hidingStateElement;
@@ -30,6 +31,7 @@ public class GameplayPanel : Panel
     public Action onStart;
     public Action<bool> onReady;
     public Action onLeave;
+    public Action onAction;
 
     public override void Initialize()
     {
@@ -41,6 +43,9 @@ public class GameplayPanel : Panel
 
         readyButton.onClick.RemoveAllListeners();
         readyButton.onClick.AddListener(OnReady);
+
+        actionButton.onClick.RemoveAllListeners();
+        actionButton.onClick.AddListener(OnAction);
     }
 
     public void EnterLobby()
@@ -159,6 +164,11 @@ public class GameplayPanel : Panel
             Destroy(person.gameObject);
         }
         playersInLobby.Clear();
+    }
+
+    private void OnAction()
+    {
+        onAction?.Invoke();
     }
     #endregion
 }
