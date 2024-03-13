@@ -9,6 +9,8 @@ public class JarManager : MonoBehaviour
 
     private Dictionary<int, JarController> jarDict = new Dictionary<int, JarController>();
 
+    [SerializeField] private GameObject selection;
+
     public void Initialize()
     {
         for (int i = 0; i < jars.Length; i++)
@@ -25,10 +27,23 @@ public class JarManager : MonoBehaviour
         {
             jars[i].Setup();
         }
+        ShowInteraction(null);
     }
 
     public JarController GetJar(int jarId)
     {
         return jarDict[jarId];
+    }
+
+    public void ShowInteraction(Collider collider)
+    {
+        if (selection.activeSelf)
+            selection.SetActive(false);
+
+        if (collider)
+        {
+            selection.transform.position = collider.transform.position;
+            selection.SetActive(true);
+        }
     }
 }

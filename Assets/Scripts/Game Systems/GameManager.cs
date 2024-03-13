@@ -155,6 +155,11 @@ public class HidingState : State
         ShowHidingDisplay();
         SetupMainCharacterState();
     }
+    public override void ExitState()
+    {
+        var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
+        mainCharacter.ClearPlayerAction();
+    }
 
     public override void Update()
     {

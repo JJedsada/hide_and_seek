@@ -49,6 +49,7 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
 
     private void Update()
     {
+        ShowDetectObjective();
         Move(); 
     }
 
@@ -101,23 +102,44 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
         isAction = false;
     }
 
+    public void ClearPlayerAction()
+    {
+        isAction = false;
+    }
+
     public void TriggerAction()
     {
         if (!PhotonNetwork.LocalPlayer.IsLocal || !isAction)
             return;
 
-        DetectObjective();
+        var interacting = DetectObjective();
+        if (!interacting)
+            return;
+        TriggleAction(interacting);
     }
 
-    private void DetectObjective()
+    private void ShowDetectObjective()
+    {
+        if (!PhotonNetwork.LocalPlayer.IsLocal || !isAction)
+        {
+            GameManager.Instance.JarManager.ShowInteraction(null);
+            return;
+        }
+          
+
+        var interacting = DetectObjective();
+        GameManager.Instance.JarManager.ShowInteraction(interacting);
+    }
+
+    private Collider DetectObjective()
     {
         var collider = Physics.OverlapSphere(transform.position, detactRadius, jarLayer);
 
         if (collider.Length <= 0)
         {
-            return;
+            return null;
         }
-        TriggleAction(collider[0]);
+        return collider[0];
     }
 
     private void TriggleAction(Collider collider)

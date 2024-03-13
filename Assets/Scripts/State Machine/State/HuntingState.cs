@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using Photon.Pun;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class HuntingState : State
@@ -16,6 +17,12 @@ public class HuntingState : State
         SetupHuntingDisplay();
         SetupMainCharacterState();
         SetupHiderDeadByWithOutHide();
+    }
+
+    public override void ExitState()
+    {
+        var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
+        mainCharacter.ClearPlayerAction();
     }
 
     public override void Update()
@@ -71,6 +78,9 @@ public class HuntingState : State
         foreach (var character in GameManager.Instance.CharacterManager.characterModels.Values)
         {
             if (character.isHiding)
+                continue;
+
+            if (character.IsDead)
                 continue;
 
             if(character.isSeek)

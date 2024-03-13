@@ -22,22 +22,35 @@ public class LobbyManager : MonoBehaviourPunCallbacks
         playerDataViewIds.Add(viewId, userId);
     }
 
+    #region Create Room
     public void CreateRoom(string name)
     {
         playerDataViewIds.Clear();
         playerDataInMatch.Clear();
 
-        PhotonNetwork.CreateRoom(name, new RoomOptions() { PublishUserId = true, MaxPlayers = 4 });
+        PhotonNetwork.CreateRoom(name, new RoomOptions() { PublishUserId = true, MaxPlayers = 20 });
+        UIManager.OpenLoading();
     }
 
+    public override void OnCreatedRoom()
+    {
+        base.OnCreatedRoom(); 
+        UIManager.CloseLoading();
+    }
+
+    public override void OnCreateRoomFailed(short returnCode, string message)
+    {
+        base.OnCreateRoomFailed(returnCode, message); 
+        UIManager.CloseLoading();
+        UIManager.ShowPopup(message);
+    }
+    #endregion
+
+    #region Join Room
     public void JoinRoom(string name)
     {
+        UIManager.OpenLoading();
         PhotonNetwork.JoinRoom(name);
-    }
-
-    public void LeaveRoom()
-    {
-        PhotonNetwork.LeaveRoom();
     }
 
     public override void OnJoinedRoom()
@@ -50,6 +63,20 @@ public class LobbyManager : MonoBehaviourPunCallbacks
         {
             playerDataInMatch.Add(player.UserId, player);
         }
+        UIManager.CloseLoading();
+    }
+
+    public override void OnJoinRoomFailed(short returnCode, string message)
+    {
+        base.OnJoinRoomFailed(returnCode, message);
+        UIManager.CloseLoading();
+        UIManager.ShowPopup(message);
+    }
+    #endregion
+
+    public void LeaveRoom()
+    {
+        PhotonNetwork.LeaveRoom();
     }
 
     public override void OnLeftRoom()

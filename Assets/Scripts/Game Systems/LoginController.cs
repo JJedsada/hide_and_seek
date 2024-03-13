@@ -25,12 +25,14 @@ public class LoginController
         }
         loginPanel.LoggingIn();
         GameManager.Instance.Server.OnConnectedServer = OnConnectedServer;
-        GameManager.Instance.Server.Connect(username);   
+        GameManager.Instance.Server.Connect(username);
+        UIManager.OpenLoading();
     }
 
     private void OnConnectedServer()
     {
         loginPanel.Close();
         GameManager.Instance.BrowseController.Present();
+        UIManager.CloseLoading();
     }
 }

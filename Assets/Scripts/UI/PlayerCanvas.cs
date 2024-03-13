@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -11,7 +9,7 @@ public class PlayerCanvas : MonoBehaviour
 
     private void Start()
     {
-        camera = Camera.main;
+        camera = Camera.main;     
     }
 
     private void Update()

@@ -32,10 +32,18 @@ public class RoomElement : MonoBehaviour
 
     private void OnJoinRoom()
     {
+        if (!info.IsVisible || !info.IsOpen)
+        {
+            UIManager.ShowPopup("Game is started.");
+            return;
+        }
+        
         if(info.PlayerCount >= info.MaxPlayers)
         {
-            Debug.Log("Room is full");
+            UIManager.ShowPopup("Room is full.");
+            return;
         }
+
         onJoin?.Invoke(info.Name);
     }
 }
