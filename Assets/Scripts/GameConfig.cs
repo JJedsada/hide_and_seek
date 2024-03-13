@@ -10,7 +10,7 @@ public class GameConfig
 
     public static float PrepareDuration = 5;
     public static float HidingDuration = 20;
-    public static float HuntingDuration = 15;
+    public static float HuntingDuration = 20;
     public static float ShowResultDuration = 5;
 
     public static int BreakJarCount(int currentRound, int playerAmount)

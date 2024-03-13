@@ -24,13 +24,13 @@ public class StateController
         CurrentState.EnterState();
     }
 
-    public void Update(float deltaTime)
+    public void Update()
     {
         if (!isInitialize)
         {
             return;
         }
 
-        CurrentState?.Update(deltaTime);
+        CurrentState?.Update();
     }
 }

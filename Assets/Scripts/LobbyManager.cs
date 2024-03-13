@@ -19,7 +19,6 @@ public class LobbyManager : MonoBehaviourPunCallbacks
 
     public void ReceiveViewId(string userId, int viewId)
     {
-        Debug.Log("ReceiveViewId");
         playerDataViewIds.Add(viewId, userId);
     }
 

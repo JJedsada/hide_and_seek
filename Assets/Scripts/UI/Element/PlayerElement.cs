@@ -1,6 +1,5 @@
+using Photon.Pun;
 using Photon.Realtime;
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,7 +7,11 @@ using UnityEngine.UI;
 public class PlayerElement : MonoBehaviour
 {
     [SerializeField] private TMP_Text nicknameText;
-    [SerializeField] private Image readyImage;
+    [SerializeField] private TMP_Text scoreText;
+    [SerializeField] private GameObject deadIcon;
+    [SerializeField] private Image readyImage; 
+    [SerializeField] private Image role;
+    [SerializeField] private GameObject owner;
 
     public Player playerInfo { get; private set; }
 
@@ -19,13 +22,36 @@ public class PlayerElement : MonoBehaviour
     {
         playerInfo = info;
 
-        SetupDisplay();
+        EnterLobby();
         UpdateReadyState(IsReady);
+    }
+
+    public void EnterLobby()
+    {
+        SetupDisplay();
+        scoreText.text = "0";
+        role.gameObject.SetActive(false);
+    }
+
+    public void EnterGameplay(bool isSeek)
+    {
+        role.gameObject.SetActive(true);
+
+        if (isSeek)
+            role.color = Color.red;
+        else
+            role.color = Color.green;
     }
 
     private void SetupDisplay()
     {
-        nicknameText.text = playerInfo.NickName;
+        nicknameText.text = playerInfo.NickName + "";
+        owner.SetActive(false);
+        if (playerInfo.UserId != PhotonNetwork.LocalPlayer.UserId)
+            return;
+
+        owner.SetActive(true);
+        nicknameText.text += "(You)";
     }
 
     public void UpdateReadyState(bool isReady)
@@ -38,5 +64,15 @@ public class PlayerElement : MonoBehaviour
             color = Color.green;
 
         readyImage.color = color;
+    }
+
+    public void SetupScore(int score)
+    {
+        scoreText.text = $"{score}";
+    }
+
+    public void SetupDead(bool isDead)
+    {
+        deadIcon.SetActive(isDead);
     }
 }

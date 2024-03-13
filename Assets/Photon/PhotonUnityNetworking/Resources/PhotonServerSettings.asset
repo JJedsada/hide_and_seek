@@ -50,6 +50,11 @@ MonoBehaviour:
   - Rpc_ReceivePlayerInfo
   - Rpc_ReceiveHideState
   - Rpc_ReceiveResultState
+  - Rpc_ReceiveHideInJar
+  - Rpc_ReceiveBreakJar
+  - Rpc_ReceiveBreakDamage
+  - Rpc_ReceiveWaittingState
+  - Rpc_ReceiveUpdateScore
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

@@ -1,5 +1,5 @@
+using Cysharp.Threading.Tasks;
 using Photon.Pun;
-using Photon.Pun.UtilityScripts;
 using Photon.Realtime;
 using System;
 using System.Collections.Generic;
@@ -14,6 +14,8 @@ public class GameplayPanel : Panel
     [SerializeField] private TMP_Text stateText;
     [SerializeField] private TMP_Text durationStateText;
     [SerializeField] private TMP_Text anounmentText;
+    [SerializeField] private TMP_Text roundText;
+    [SerializeField] private TMP_Text killAnounmentText;
     [Space]
     [SerializeField] private PlayerElement playerElementPrefab;
     [SerializeField] private RectTransform content;
@@ -56,6 +58,15 @@ public class GameplayPanel : Panel
         SetupPlayers();
     }
 
+    public void EnterGameplay()
+    {
+        foreach (var element in playersInLobby.Values)
+        {
+            bool seeker = GameManager.Instance.GameController.BeSeek(element.playerInfo.UserId);
+            element.EnterGameplay(seeker);
+        }
+    }
+
     #region Display
     private void SetupRoomName()
     {
@@ -73,6 +84,11 @@ public class GameplayPanel : Panel
         }
     }
 
+    public void SetupRoundDisplay(int currentRound)
+    {
+        roundText.text = $"Round : {currentRound}/5";
+    }
+
     public void SetupStateDisplay(string stateName)
     {
         stateText.text = $"{stateName}";
@@ -81,6 +97,19 @@ public class GameplayPanel : Panel
     public void SetupStateDuration(float duration)
     {
         durationStateText.text = duration.ToString("F0"); 
+    }
+
+    public async UniTask SetupKilledAnounment(params string[] playername)
+    {
+        string text = string.Empty;
+
+        for (int i = 0; i < playername.Length; i++)
+        {
+            text += $"{playername[i]} was killed.\n";
+        }
+        killAnounmentText.text = text;
+        await UniTask.Delay(2000);
+        killAnounmentText.text = string.Empty; 
     }
 
     private void SetupPlayers()
@@ -93,8 +122,16 @@ public class GameplayPanel : Panel
         }
     }
 
+    public PlayerElement GetElement(string userId)
+    {
+        return playersInLobby[userId];
+    }
+
     public void AddPlayerDisplay(Player newPlayer)
     {
+        if (playersInLobby.ContainsKey(newPlayer.UserId))
+            return;
+
         var element = Instantiate(playerElementPrefab, content);
 
         element.Initialize(newPlayer);
@@ -126,14 +163,52 @@ public class GameplayPanel : Panel
     {
         hidingStateElement.SetActive(isSeek);
 
-        string anounText = isSeek ? "Waiting Player Hiding":"Start Hiding";
-        anounmentText.text = anounText;
+        if (isSeek)
+        {
+            anounmentText.text = "Waiting Player Hiding";
+            return;
+        }
+
+        string hidingText = $"Round {GameManager.Instance.GameController.currentRound}/5\nStart Hiding"; ;
+        SetAnounmentText(hidingText);
     }
 
     public void ShowHunting()
     {
         hidingStateElement.SetActive(false);
-        anounmentText.text = "Start Hunting";
+        string text = "Start Hunting";
+        SetAnounmentText(text);
+    }
+
+    public void ShowPlayerAlive(int playerAlive)
+    {
+        string text = $"Player in alive {playerAlive}";
+        SetAnounmentText(text);
+    }
+
+    public async void SetAnounmentText(string text)
+    {
+        anounmentText.text = text;
+        await UniTask.Delay(3000);
+        anounmentText.text = string.Empty;
+    }
+
+    public void DefualtDisplay()
+    {
+        roundText.text = string.Empty;
+        durationStateText.text = string.Empty;
+        stateText.text = string.Empty;
+        anounmentText.text = string.Empty;
+
+        ElementClearData();
+    }
+
+    private void ElementClearData()
+    {
+        foreach (var element in playersInLobby.Values)
+        {
+            element.EnterLobby();
+        }
     }
     #endregion
 
@@ -149,10 +224,15 @@ public class GameplayPanel : Panel
         var playerElement = playersInLobby[localPlayer.UserId];
         bool isReady = !playerElement.IsReady;
 
-        string readyTxt = isReady ? "UnReady" : "Ready";
-        readyText.text = readyTxt;
+        SetupReadyDisplay(isReady);
 
         onReady?.Invoke(isReady);
+    }
+
+    public void SetupReadyDisplay(bool isReady)
+    {
+        string readyTxt = isReady ? "UnReady" : "Ready";
+        readyText.text = readyTxt;
     }
 
     private void OnLeaveRoom()

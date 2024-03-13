@@ -188,7 +188,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca96da0840934f341bf5e9db744e95a3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  convas: {fileID: 752798330957765959}
+  canvas: {fileID: 752798330957765959}
   speedmovement: 3
   detactRadius: 1.5
   animator: {fileID: 5223200113913578377}

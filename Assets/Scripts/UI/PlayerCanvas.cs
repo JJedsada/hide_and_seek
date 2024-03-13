@@ -23,4 +23,9 @@ public class PlayerCanvas : MonoBehaviour
     {
         nameText.text = name;
     }
+
+    public void SetupDisplayOwner()
+    {
+        nameText.color = Color.green;
+    }
 }

@@ -1,12 +1,12 @@
+using Cysharp.Threading.Tasks;
 using Photon.Pun;
 using Photon.Realtime;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.TextCore.Text;
 
 public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
 {
-    [SerializeField] private PlayerCanvas convas;
+    [SerializeField] private PlayerCanvas canvas;
     [SerializeField] private float speedmovement = 10;
     [SerializeField] private float detactRadius = 10;
     [SerializeField] private Animator animator;
@@ -19,14 +19,13 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
     private JarController interacting;
 
     private bool IsMoveAble;
-    public bool IsDead { get; set; }
-
-    private bool isSeek;
-    private int breakCount;
-
-    private bool isHiding;
+    public bool IsDead { get; private set; }
+    public bool isSeek { get; private set; }
+    public bool isHiding { get; private set; }
+    public int Score { get; set; } = 0;
 
     private bool isAction;
+    private int breakCount;
 
     public void Start()
     {
@@ -40,24 +39,15 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
 
     public void SetupPlayerData(Player playerInfo)
     {
+        if (playerInfo.UserId == PhotonNetwork.LocalPlayer.UserId)
+            canvas.SetupDisplayOwner();
+
         this.playerInfo = playerInfo;
-        convas.SetupDisplayName(playerInfo.NickName);
+        canvas.SetupDisplayName(playerInfo.NickName);
         SetupDefault();
     }
 
-    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
-    {
-        if (stream.IsWriting)
-        {
-            // We own this player: send the others our data
-        }
-        else
-        {
-            // Network player, receive data
-        }
-    }
-
-    private void FixedUpdate()
+    private void Update()
     {
         Move(); 
     }
@@ -69,8 +59,8 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
 
         if (playerInfo.IsLocal)
         {
-            float horizontal = Input.GetAxis("Horizontal");
-            float vertical = Input.GetAxis("Vertical");
+            float horizontal = Input.GetAxisRaw("Horizontal");
+            float vertical = Input.GetAxisRaw("Vertical");
 
             Vector3 diraction = new Vector3(horizontal, transform.position.y, vertical).normalized;
 
@@ -124,8 +114,9 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
         var collider = Physics.OverlapSphere(transform.position, detactRadius, jarLayer);
 
         if (collider.Length <= 0)
+        {
             return;
-
+        }
         TriggleAction(collider[0]);
     }
 
@@ -133,7 +124,7 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
     {
         if (isSeek)
         {
-            BreakJar();
+            BreakJar(collider);
             return;
         }
         HideAction(collider);
@@ -142,33 +133,54 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
     private void HideAction(Collider collider)
     {
         interacting = collider.gameObject.GetComponent<JarController>();
-
-        isHiding = !isHiding;
         RpcExcute.instance.Rpc_SendHideInJar(!isHiding, interacting.JarId);
     }
 
-    private void BreakJar()
+    private void BreakJar(Collider collider)
     {
+        interacting = collider.gameObject.GetComponent<JarController>();
+
         if (breakCount <= 0)
             return;
 
         breakCount--;
+
+        RpcExcute.instance.Rpc_SendBreakJar(interacting.JarId);
     }
 
-    public void SetHidigModel(bool isHide, int jarId)
+    public void SetHideInJar(string userId, bool isHide, int jarId)
     {
-        model.SetActive(!isHide);
-        var jar = GameManager.Instance.JarManager.GetJar(jarId);
+        isHiding = isHide;
 
+        SetHideModel(!isHide);
+        var jar = GameManager.Instance.JarManager.GetJar(jarId);
         if (isHide)
         {
-            jar.EntryHide(playerInfo.UserId, this);
+            jar.EntryHide(userId, this);
             IsMoveAble = false;
             return;
         }
 
-        jar.LeaveHide(playerInfo.UserId);
+        jar.LeaveHide(userId);
         IsMoveAble = true;
+    }
+
+    public void OutHide()
+    {
+        if (interacting == null)
+            return;
+
+        RpcExcute.instance.Rpc_SendHideInJar(false, interacting.JarId);
+    }
+
+    public void SetHideModel(bool active)
+    {
+        model.SetActive(active);
+    }
+
+    public void SetActiveNameDisplay(bool active)
+    {
+        canvas.gameObject.SetActive(active);
     }
 
     public void SetMoveAble(bool isAble)
@@ -178,9 +190,36 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
             animator.SetFloat("Speed", 0);
     }
 
+    public async UniTask Breaking()
+    {
+        animator.SetTrigger("IsBreakJar");
+        IsMoveAble = false;
+        await UniTask.Delay(1000);
+        IsMoveAble = true;
+    }
+
+    public async UniTask Dead()
+    {
+        IsDead = true;
+        await UniTask.Delay(700);
+        model.SetActive(true);
+        UIManager.Instance.GameplayPanel.GetElement(playerInfo.UserId).SetupDead(IsDead);
+        animator.SetTrigger("IsDead");
+    }
+
     public void SetupDefault()
     {
+        canvas.gameObject.SetActive(true);
         IsMoveAble = true;
         IsDead = false;
+        Score = 0;
+        isAction = false;
+        UIManager.Instance.GameplayPanel.GetElement(playerInfo.UserId).SetupDead(IsDead);
+        animator.Play("Idle");
+    }
+
+    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+    {
+       
     }
 }

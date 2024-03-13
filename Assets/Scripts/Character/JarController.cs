@@ -14,6 +14,7 @@ public class JarController : MonoBehaviour
     {
         IsBreaked = false;
         Clear();
+        SetActive(true);
     }
 
     public Dictionary<string, CharacterController> Breaking()
@@ -35,5 +36,10 @@ public class JarController : MonoBehaviour
     public void LeaveHide(string userId)
     {
         hidingCharacter.Remove(userId);
+    }
+
+    public void SetActive(bool active)
+    {
+        gameObject.SetActive(active);
     }
 }

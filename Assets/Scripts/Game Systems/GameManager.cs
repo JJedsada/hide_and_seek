@@ -1,4 +1,5 @@
 using Photon.Pun;
+using System.Globalization;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
@@ -37,17 +38,18 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        float deltaTime = Time.deltaTime;
-
-        GameStateController.Update(deltaTime);
+        GameStateController.Update();
     }
 
-    public void ChageState(StateType state)
+    public void ChangeState(StateType state)
     {
         switch (state)
         {
             case StateType.Lobby:
                 GameStateController.ChangeState(new LobbyState());
+                break;
+            case StateType.Waitting:
+                GameStateController.ChangeState(new WaittingState());
                 break;
             case StateType.Prepare:
                 GameStateController.ChangeState(new PrepareState());
@@ -74,11 +76,32 @@ public class LobbyState: State
         GameManager.Instance.CharacterManager.SpawnPlayer();
         int viewId = GameManager.Instance.CharacterManager.MainCharater.photonView.ViewID;
         RpcExcute.instance.Rpc_SendPlayerInfo(viewId);
-        RpcExcute.instance.Rpc_SendUpdateReadyState(false);
         if (PhotonNetwork.IsMasterClient)
         {
             RpcExcute.instance.Rpc_SendUpdateReadyState(true);
         }
+
+        GameManager.Instance.ChangeState(StateType.Waitting);
+    }
+}
+
+public class WaittingState : State
+{
+    public override void EnterState()
+    {
+        base.EnterState();
+
+        var GameplayPanel = UIManager.Instance.GameplayPanel;
+        GameplayPanel.DefualtDisplay();
+        GameplayPanel.EnterLobby();
+        GameManager.Instance.JarManager.SetDefalt();
+        GameManager.Instance.GameController.EnterWaittingState();
+
+        if (PhotonNetwork.IsMasterClient)
+            return;
+
+        RpcExcute.instance.Rpc_SendUpdateReadyState(false);
+        GameplayPanel.SetupReadyDisplay(false);
     }
 }
 
@@ -92,9 +115,11 @@ public class PrepareState : State
         ShowRoleYourSelf();
     }
 
-    public override void Update(float deltaTime)
+    public override void Update()
     {
-        base.Update(deltaTime);
+        base.Update();
+
+        float deltaTime = Time.deltaTime;
         stateCountDown.Update(deltaTime);
     }
 
@@ -128,11 +153,13 @@ public class HidingState : State
     {
         base.EnterState();
         ShowHidingDisplay();
+        SetupMainCharacterState();
     }
 
-    public override void Update(float deltaTime)
+    public override void Update()
     {
-        base.Update(deltaTime);
+        base.Update();
+        float deltaTime = Time.deltaTime;
         stateCountDown.Update(deltaTime);
     }
 
@@ -156,43 +183,20 @@ public class HidingState : State
                 RpcExcute.instance.Rpc_SendHuntingState();
         }       
     }
-}
 
-public class HuntingState : State
-{
-    private CountDown stateCountDown = new CountDown();
-
-    public override void EnterState()
+    private void SetupMainCharacterState()
     {
-        base.EnterState();
-        ShowHuntingDisplay();
-    }
+        var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
+        mainCharacter.SetupHidingState();
 
-    public override void Update(float deltaTime)
-    {
-        base.Update(deltaTime);
-        stateCountDown.Update(deltaTime);
-    }
-
-    public void ShowHuntingDisplay()
-    {
-        GameManager.Instance.GameController.SetupHuntingState();
-
-        stateCountDown.Start(GameConfig.HuntingDuration);
-
-        stateCountDown.onUpdate = OnUpdate;
-        stateCountDown.onComplete = OnComplete;
-
-        void OnUpdate(float currentDuration)
+        if (GameManager.Instance.GameController.IsSeek)
         {
-            UIManager.Instance.GameplayPanel.SetupStateDuration(currentDuration);
+            mainCharacter.SetMoveAble(false);
+            return;
         }
-
-        void OnComplete()
-        {
-            if (PhotonNetwork.IsMasterClient)
-                RpcExcute.instance.Rpc_SendResult();
-        }
+        mainCharacter.SetHideModel(true);
+        mainCharacter.SetMoveAble(true);
+        mainCharacter.OutHide();
     }
 }
 
@@ -203,19 +207,21 @@ public class ResultState : State
     public override void EnterState()
     {
         base.EnterState();
-        ShowResulState();
+        SetupResultState();
+        UpdateScore();
     }
 
-    public override void Update(float deltaTime)
+    public override void Update()
     {
-        base.Update(deltaTime);
+        base.Update();
+        float deltaTime = Time.deltaTime;
         stateCountDown.Update(deltaTime);
     }
 
-    public void ShowResulState()
+    public void SetupResultState()
     {
         GameManager.Instance.GameController.SetupResultState();
-
+ 
         stateCountDown.Start(GameConfig.ShowResultDuration);
 
         stateCountDown.onUpdate = OnUpdate;
@@ -228,8 +234,18 @@ public class ResultState : State
 
         void OnComplete()
         {
-            if (PhotonNetwork.IsMasterClient)
-                RpcExcute.instance.Rpc_SendHidingState();
+            GameManager.Instance.GameController.EndRound();
+        }
+    }
+
+    private void UpdateScore()
+    {
+        var character = GameManager.Instance.CharacterManager.GetCharacterModel(PhotonNetwork.LocalPlayer.UserId);
+
+        if (!character.isSeek && !character.IsDead)
+        {
+            character.Score += 1;
+            RpcExcute.instance.Rpc_SendUpdateScore(character.Score);
         }
     }
 }
