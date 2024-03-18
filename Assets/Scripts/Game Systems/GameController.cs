@@ -123,7 +123,7 @@ public class GameController
 
     public void SetupResultState()
     {
-        gameplayPanel.SetupStateDisplay("Result State");
+        gameplayPanel.SetupStateDisplay("");
         var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
         mainCharacter.SetMoveAble(false);
         gameplayPanel.ShowPlayerAlive(playerAlive);
@@ -164,13 +164,9 @@ public class GameController
 
     private async void ShowGameSummary()
     {
-        var gamePanel = UIManager.Instance.GameplayPanel;
-        if (playerAlive <= 0)
-            gamePanel.SetAnounmentText("Seek Win");
-        else
-            gamePanel.SetAnounmentText("Hider Win");
-
-        await UniTask.Delay(3000);
+        UIManager.Instance.resultPanel.Open();
+        await UniTask.Delay(5000);
+        UIManager.Instance.resultPanel.Clear();
         SendNextState(true);
     }
 

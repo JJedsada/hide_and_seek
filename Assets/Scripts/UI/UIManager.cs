@@ -14,6 +14,7 @@ public class UIManager : MonoBehaviour
     public LoginPanel LoginPanel;
     public BrowsePanel BrowsePanel;
     public GameplayPanel GameplayPanel;
+    public ResultPanel resultPanel;
     [SerializeField] private Popup popup;
     [SerializeField] private GameObject loadingTaskPanel;
 

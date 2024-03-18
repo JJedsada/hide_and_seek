@@ -96,7 +96,8 @@ public class WaittingState : State
         GameplayPanel.EnterLobby();
         GameManager.Instance.JarManager.SetDefalt();
         GameManager.Instance.GameController.EnterWaittingState();
-
+        PhotonNetwork.CurrentRoom.IsOpen = true;
+        PhotonNetwork.CurrentRoom.IsVisible = true;
         if (PhotonNetwork.IsMasterClient)
             return;
 
@@ -229,13 +230,7 @@ public class ResultState : State
  
         stateCountDown.Start(GameConfig.ShowResultDuration);
 
-        stateCountDown.onUpdate = OnUpdate;
         stateCountDown.onComplete = OnComplete;
-
-        void OnUpdate(float currentDuration)
-        {
-            UIManager.Instance.GameplayPanel.SetupStateDuration(currentDuration);
-        }
 
         void OnComplete()
         {

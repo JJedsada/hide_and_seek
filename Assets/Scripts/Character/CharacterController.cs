@@ -2,7 +2,6 @@ using Cysharp.Threading.Tasks;
 using Photon.Pun;
 using Photon.Realtime;
 using UnityEngine;
-using UnityEngine.TextCore.Text;
 
 public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
 {
@@ -60,8 +59,8 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
 
         if (playerInfo.IsLocal)
         {
-            float horizontal = Input.GetAxisRaw("Horizontal");
-            float vertical = Input.GetAxisRaw("Vertical");
+            float horizontal = UIManager.Instance.GameplayPanel.joystick.Horizontal;
+            float vertical = UIManager.Instance.GameplayPanel.joystick.Vertical;
 
             Vector3 diraction = new Vector3(horizontal, transform.position.y, vertical).normalized;
 
@@ -89,6 +88,7 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
             return;
         }
         isAction = true;
+        UIManager.Instance.GameplayPanel.SetupHideAction();
     }
 
     public void SetupHuntingState(int breakCount = 0)
@@ -97,6 +97,7 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
         {
             isAction = true;
             this.breakCount = breakCount;
+            UIManager.Instance.GameplayPanel.SetupPunchAction(breakCount);
             return;
         }
         isAction = false;
@@ -120,12 +121,16 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
 
     private void ShowDetectObjective()
     {
-        if (!PhotonNetwork.LocalPlayer.IsLocal || !isAction)
+        if (PhotonNetwork.LocalPlayer.UserId != playerInfo.UserId)
+        {
+            return;
+        }
+
+        if (!isAction)
         {
             GameManager.Instance.JarManager.ShowInteraction(null);
             return;
         }
-          
 
         var interacting = DetectObjective();
         GameManager.Instance.JarManager.ShowInteraction(interacting);
@@ -154,6 +159,9 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
 
     private void HideAction(Collider collider)
     {
+        if (IsDead)
+            return;
+
         interacting = collider.gameObject.GetComponent<JarController>();
         RpcExcute.instance.Rpc_SendHideInJar(!isHiding, interacting.JarId);
     }
@@ -166,7 +174,9 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
             return;
 
         breakCount--;
-
+        UIManager.Instance.GameplayPanel.SetupPunchCount(breakCount);
+        Vector3 diraction = interacting.transform.position - transform.position;
+        transform.rotation = Quaternion.LookRotation(diraction);
         RpcExcute.instance.Rpc_SendBreakJar(interacting.JarId);
     }
 
@@ -224,7 +234,12 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
     {
         IsDead = true;
         await UniTask.Delay(700);
-        model.SetActive(true);
+
+        if (model)
+        {
+            model.SetActive(true);
+        }
+      
         UIManager.Instance.GameplayPanel.GetElement(playerInfo.UserId).SetupDead(IsDead);
         animator.SetTrigger("IsDead");
     }

@@ -9,6 +9,9 @@ using UnityEngine.UI;
 
 public class GameplayPanel : Panel
 {
+    [SerializeField] private Sprite punchIcon;
+    [SerializeField] private Sprite hideIcon;
+    [Space]
     [SerializeField] private TMP_Text roomnameText;
     [SerializeField] private TMP_Text readyText;
     [SerializeField] private TMP_Text stateText;
@@ -16,9 +19,13 @@ public class GameplayPanel : Panel
     [SerializeField] private TMP_Text anounmentText;
     [SerializeField] private TMP_Text roundText;
     [SerializeField] private TMP_Text killAnounmentText;
+    [SerializeField] private TMP_Text actionCountText;
+    [Space]
+    [SerializeField] private Image actionImage;
+    [SerializeField] private GameObject countAction;
     [Space]
     [SerializeField] private PlayerElement playerElementPrefab;
-    [SerializeField] private RectTransform content;
+    public RectTransform content;
     [Space]
     [SerializeField] private Button startButton;
     [SerializeField] private Button readyButton;
@@ -27,6 +34,7 @@ public class GameplayPanel : Panel
     [Space]
     [SerializeField] private GameObject lobbyStateElement;
     [SerializeField] private GameObject hidingStateElement;
+    public FixedJoystick joystick;
 
     public Dictionary<string, PlayerElement> playersInLobby { get; private set; } = new Dictionary<string, PlayerElement>();
 
@@ -97,6 +105,32 @@ public class GameplayPanel : Panel
     public void SetupStateDuration(float duration)
     {
         durationStateText.text = duration.ToString("F0"); 
+    }
+
+    public void SetupInteractButton(bool isInteract)
+    {
+        if (actionButton.gameObject.activeSelf == isInteract)
+            return;
+
+        actionButton.gameObject.SetActive(isInteract);
+    }
+
+    public void SetupPunchAction(int actionCount)
+    {
+        actionImage.sprite = punchIcon;
+        SetupPunchCount(actionCount);
+        countAction.gameObject.SetActive(true);
+    }
+
+    public void SetupPunchCount(int actionCount)
+    {
+        actionCountText.text = actionCount.ToString();
+    }
+
+    public void SetupHideAction()
+    {
+        actionImage.sprite = hideIcon;
+        countAction.gameObject.SetActive(false);
     }
 
     public async UniTask SetupKilledAnounment(params string[] playername)

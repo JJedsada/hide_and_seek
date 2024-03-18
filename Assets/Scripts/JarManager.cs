@@ -37,13 +37,18 @@ public class JarManager : MonoBehaviour
 
     public void ShowInteraction(Collider collider)
     {
-        if (selection.activeSelf)
-            selection.SetActive(false);
-
+        Vector3 offset = new Vector3(0, 0.1f, 0);
+        UIManager.Instance.GameplayPanel.SetupInteractButton(collider);
         if (collider)
         {
-            selection.transform.position = collider.transform.position;
-            selection.SetActive(true);
+            selection.transform.position = collider.transform.position + offset;
+            if (!selection.activeSelf)
+                selection.SetActive(true);
+        }
+        else
+        {
+            if (selection.activeSelf)
+                selection.SetActive(false);
         }
     }
 }
