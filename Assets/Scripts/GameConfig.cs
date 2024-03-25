@@ -13,6 +13,8 @@ public class GameConfig
     public static float HuntingDuration = 20;
     public static float ShowResultDuration = 5;
 
+    public static float TimelessDuration = 10;
+
     public static int BreakJarCount(int currentRound, int playerAmount)
     {
         int breakJarCount = 1;

@@ -1,3 +1,4 @@
+using Cysharp.Threading.Tasks;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -5,6 +6,7 @@ using UnityEngine;
 
 public class JarManager : MonoBehaviour
 {
+    [SerializeField] public ParticleSystem StarfallVfxPrefab;
     [SerializeField] private JarController[] jars = new JarController[9];
 
     private Dictionary<int, JarController> jarDict = new Dictionary<int, JarController>();
@@ -30,9 +32,47 @@ public class JarManager : MonoBehaviour
         ShowInteraction(null);
     }
 
+    public void ClearSpray()
+    {
+        for (int i = 0; i < jars.Length; i++)
+        {
+            jars[i].ClearSpray();
+        }
+    }
+
+    public void ScanAll()
+    {
+        for (int i = 0; i < jars.Length; i++)
+        {
+            jars[i].Scan();
+        }
+    }
+
+    public void ClearScan()
+    {
+        for (int i = 0; i < jars.Length; i++)
+        {
+            jars[i].ClearScan();
+        }
+    }
+
     public JarController GetJar(int jarId)
     {
-        return jarDict[jarId];
+        return jarDict[jarId];  
+    }
+
+    public List<JarController> JarAlive()
+    {
+        List<JarController> jarAlive = new List<JarController>();
+        for (int i = 0; i < jars.Length; i++)
+        {
+            var jar = jars[i];
+            if (jar.IsBreaked)
+                continue;
+            jarAlive.Add(jar);
+        }
+
+        return jarAlive;
     }
 
     public void ShowInteraction(Collider collider)
@@ -50,5 +90,15 @@ public class JarManager : MonoBehaviour
             if (selection.activeSelf)
                 selection.SetActive(false);
         }
+    }
+
+    public async UniTask Starfall(int jarId)
+    {
+        var particle = Instantiate(StarfallVfxPrefab);
+        particle.transform.position = GetJar(jarId).transform.position + Vector3.up;
+
+        await UniTask.Delay(2000);
+
+        Destroy(particle);
     }
 }

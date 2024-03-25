@@ -2,6 +2,7 @@ using Cysharp.Threading.Tasks;
 using Newtonsoft.Json;
 using Photon.Pun;
 using Photon.Realtime;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -10,7 +11,9 @@ public class GameController
 {
     private GameplayPanel gameplayPanel => UIManager.Instance.GameplayPanel;
 
-    private Dictionary<string, PlayerElement> playersInLobby => gameplayPanel.playersInLobby;
+    public SkillController skillController = new();
+
+    private Dictionary<string, PlayerElement> playersInLobby => gameplayPanel.PlayersInLobby;
 
     private Seek[] currentSeek = new Seek[0];
 
@@ -21,14 +24,15 @@ public class GameController
     public int seekCount { get; private set; }
     public int playerAlive { get; private set; }
     public int playerCount { get; private set; }
+    public bool IsTimeless { get; set; }
+    public bool IsStarfall { get; set; }
+
+    private List<string> reviveList = new List<string>();
+    private int starfallToJarId;
 
     public void Initialize()
     {
-        gameplayPanel.onStart = OnStartGame;
-        gameplayPanel.onReady = OnReady;
-        gameplayPanel.onLeave = OnLeaveRoom;
-        gameplayPanel.onAction = OnAction;
-
+        gameplayPanel.AddListener(OnStartGame, OnReady, OnLeaveRoom, OnAction, OnSkill);
         GameManager.Instance.Lobby.onPlayerEntryRoom = OnPlayerEntryRoom;
         GameManager.Instance.Lobby.onPlayerLeaveRoom = OnPlayerLeftRoom;
     }
@@ -79,6 +83,11 @@ public class GameController
         GameManager.Instance.CharacterManager.MainCharater.TriggerAction();
     }
 
+    private void OnSkill(int skillIndex)
+    {
+        GameManager.Instance.CharacterManager.MainCharater.SkillAction(skillIndex);
+    }
+
     public void UpdateReadyState(string actorNumber, bool isReady)
     {
         if (playersInLobby.TryGetValue(actorNumber, out var playerElement))
@@ -108,21 +117,46 @@ public class GameController
     }
 
     public void SetupHidingState()
-    {
+    { 
         gameplayPanel.SetupRoundDisplay(currentRound);
         gameplayPanel.SetupStateDisplay("Hiding State");
         
         gameplayPanel.ShowHiding(IsSeek);
+
+        bool isOpen = IsSeek ? false : true;
+        gameplayPanel.ShowSkill(isOpen);
+
+        for (int i = 0; i < currentSeek.Length; i++)
+        {
+            if (IsSeek)
+                return;
+            string seekId = currentSeek[i].userId;
+            var model = GameManager.Instance.CharacterManager.GetCharacterModel(seekId);      
+            model.ShowSeekView(true);
+        }
+    }
+
+    public void ExitHidingState()
+    {
+        for (int i = 0; i < currentSeek.Length; i++)
+        {
+            var model = GameManager.Instance.CharacterManager.GetCharacterModel(currentSeek[i].userId);
+            model.ShowSeekView(false);
+        }
     }
 
     public void SetupHuntingState()
     {
         gameplayPanel.SetupStateDisplay("Hunting State");
         gameplayPanel.ShowHunting();
+
+        bool isOpen = IsSeek ? true : false;
+        gameplayPanel.ShowSkill(isOpen);
     }
 
     public void SetupResultState()
     {
+        reviveList.Clear();
         gameplayPanel.SetupStateDisplay("");
         var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
         mainCharacter.SetMoveAble(false);
@@ -165,7 +199,7 @@ public class GameController
     private async void ShowGameSummary()
     {
         UIManager.Instance.resultPanel.Open();
-        await UniTask.Delay(5000);
+        await UniTask.Delay(3000);
         UIManager.Instance.resultPanel.Clear();
         SendNextState(true);
     }
@@ -202,7 +236,7 @@ public class GameController
 
         for (int i = 0; i < seekCount; i++)
         {
-            int seekIndex = Random.Range(0, playerCount);
+            int seekIndex = UnityEngine.Random.Range(0, playerCount);
             var seek = playerList[seekIndex];
 
             Seek target = new Seek();
@@ -251,27 +285,43 @@ public class GameController
         jar.SetActive(false);
     }
 
+    public void StarfallBreakingJar(int jarId)
+    {
+        var jar = GameManager.Instance.JarManager.GetJar(jarId);
+        jar.Breaking();
+        jar.SetActive(false);
+        GameManager.Instance.JarManager.Starfall(starfallToJarId).Forget();
+    }
+
     private void SendBreakDamage(string userId, Dictionary<string, CharacterController> playerDead)
     {
         if (userId != PhotonNetwork.LocalPlayer.UserId)
             return;
 
-        int index = 0;
-        int deadCount = playerDead.Keys.Count;
-        PlayerInJar[] listPlayerTakeDamage = new PlayerInJar[deadCount];
+        List<PlayerInJar> listPlayerTakeDamage = new List<PlayerInJar>();
+        List<PlayerInJar> listPlayerRevive = new List<PlayerInJar>();
 
         foreach (string userIdInJar in playerDead.Keys)
         {
+            if (IsRevive(userIdInJar))
+            {
+                PlayerInJar revive = new PlayerInJar();
+                revive.userId = userIdInJar;
+                listPlayerRevive.Add(revive);
+                continue;
+            }       
+
             PlayerInJar player = new PlayerInJar();
             player.userId = userIdInJar;
-            listPlayerTakeDamage[index] = player;
-            index++;
+            listPlayerTakeDamage.Add(player);
         }
 
         string json = JsonConvert.SerializeObject(listPlayerTakeDamage);
+        string reviveJson = JsonConvert.SerializeObject(listPlayerRevive);
         RpcExcute.instance.Rpc_SendBreakDamage(json);
+        RpcExcute.instance.Rpc_SendRevive(reviveJson);
 
-        if (deadCount <= 0)
+        if (listPlayerTakeDamage.Count <= 0)
             return;
 
         var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
@@ -303,10 +353,114 @@ public class GameController
         gameplayPanel.SetupKilledAnounment(playerName).Forget();
     }
 
+    public async UniTask Revived(string playerDataTaking)
+    {
+        var reviveInRound = JsonConvert.DeserializeObject<PlayerInJar[]>(playerDataTaking);
+        foreach (var player in reviveInRound)
+        {
+            var character = GameManager.Instance.CharacterManager.GetCharacterModel(player.userId);
+            character.Revive().Forget();
+        }
+
+        await UniTask.Delay(700);
+    }
+
     public void UpdateScore(string userId, int score)
     {
-        UIManager.Instance.GameplayPanel.playersInLobby[userId].SetupScore(score);
+        UIManager.Instance.GameplayPanel.PlayersInLobby[userId].SetupScore(score);
         GameManager.Instance.CharacterManager.GetCharacterModel(userId).Score = score;
     }
+
+    public void PlayerActiveSkill(string skillJson)
+    {
+        SkillReqeust skillReqeust = JsonConvert.DeserializeObject<SkillReqeust>(skillJson);
+        switch (skillReqeust.skillId)
+        {
+            case SkillType.Block:
+                break;
+
+            case SkillType.Kick:
+                break;
+
+            case SkillType.Revice:
+                Revive(skillReqeust);
+                break;
+
+            case SkillType.Spray: 
+                Spray(skillReqeust);
+                break;
+
+            case SkillType.Scan:
+                Scan(skillReqeust);
+                break;
+            case SkillType.Starfall:
+                Starfall(skillReqeust);
+                break;
+            case SkillType.Timeless:
+                Timeless();
+                break;
+        }
+    }
     #endregion
+  
+    private bool IsRevive(string userId)
+    {
+        for (int i = 0; reviveList.Count > 0; i++)
+        {
+            if (reviveList[i] != userId)
+                continue;
+
+            return true;
+        }
+        return false;
+    }
+
+    private void Revive(SkillReqeust skillReqeust)
+    {
+        reviveList.Add(skillReqeust.playerId);
+    }
+
+    private void Spray(SkillReqeust skillReqeust)
+    {
+        if (IsSeek)
+        {
+            GameManager.Instance.JarManager.GetJar(skillReqeust.jarId).Spray();
+            return;
+        }
+
+        if (PhotonNetwork.LocalPlayer.UserId != skillReqeust.playerId)
+            return;
+
+        GameManager.Instance.JarManager.GetJar(skillReqeust.jarId).Spray();
+    }
+
+    private void Scan(SkillReqeust skillReqeust)
+    {
+        UIManager.Instance.GameplayPanel.SetAnounmentText("Finder use Scan skills.");
+        if (IsSeek)
+            GameManager.Instance.JarManager.ScanAll();
+    }
+
+    private void Starfall(SkillReqeust skillReqeust)
+    {
+        IsStarfall = true;
+        starfallToJarId = skillReqeust.jarId;
+        UIManager.Instance.GameplayPanel.SetAnounmentText("Finder use Starfall skills.");
+    }
+
+    public void ActiveStarfall()
+    {
+        if (!IsStarfall)
+            return;
+
+        IsStarfall = false;
+        RpcExcute.instance.Rpc_SendStarfall(starfallToJarId);
+        UIManager.Instance.GameplayPanel.SetAnounmentText("Starfall.");
+    }
+
+    private void Timeless()
+    {
+        IsTimeless = true;
+        UIManager.Instance.GameplayPanel.SetAnounmentText("Finder use timeless skills.");
+    }
 }

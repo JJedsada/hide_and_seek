@@ -5,17 +5,21 @@ using UnityEngine;
 
 public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
 {
+    private const float Defualt_Movespeed = 3;
+    private const float Peter_Movespeed = 1;
+
     [SerializeField] private PlayerCanvas canvas;
-    [SerializeField] private float speedmovement = 10;
+    [SerializeField] private float speedmovement = 3;
     [SerializeField] private float detactRadius = 10;
     [SerializeField] private Animator animator;
     [SerializeField] private LayerMask jarLayer;
     [Space]
     [SerializeField] private GameObject model;
 
-    public Player playerInfo { get; private set; }
+    public SkillController skillController = new();
 
-    private JarController interacting;
+    public Player playerInfo { get; private set; }
+    public JarController interacting { get; private set; }
 
     private bool IsMoveAble;
     public bool IsDead { get; private set; }
@@ -39,8 +43,11 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
     public void SetupPlayerData(Player playerInfo)
     {
         if (playerInfo.UserId == PhotonNetwork.LocalPlayer.UserId)
+        {
             canvas.SetupDisplayOwner();
-
+            skillController.Initailize(this);
+        }
+         
         this.playerInfo = playerInfo;
         canvas.SetupDisplayName(playerInfo.NickName);
         SetupDefault();
@@ -78,6 +85,10 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
     public void SetupRole(bool isSeek)
     {
         this.isSeek = isSeek;
+        skillController.SetupData(isSeek);
+        UIManager.Instance.GameplayPanel.SetupHideAction();
+        if (isSeek)
+            UIManager.Instance.GameplayPanel.SetupPunchAction(breakCount);
     }
 
     public void SetupHidingState()
@@ -85,6 +96,7 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
         if (isSeek)
         {
             isAction = false;
+            speedmovement = Peter_Movespeed;
             return;
         }
         isAction = true;
@@ -96,8 +108,9 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
         if (isSeek)
         {
             isAction = true;
+            speedmovement = Defualt_Movespeed;
             this.breakCount = breakCount;
-            UIManager.Instance.GameplayPanel.SetupPunchAction(breakCount);
+            UIManager.Instance.GameplayPanel.SetupPunchCount(breakCount);
             return;
         }
         isAction = false;
@@ -117,6 +130,11 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
         if (!interacting)
             return;
         TriggleAction(interacting);
+    }
+
+    public void SkillAction(int index)
+    {
+        skillController.ActionSkill(index);
     }
 
     private void ShowDetectObjective()
@@ -145,6 +163,15 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
             return null;
         }
         return collider[0];
+    }
+
+    public (bool isInteract, int jarId) TrySpray()
+    {
+        var detected = DetectObjective();
+        if(detected == null)
+            return (false, 0);
+        var jar = detected.gameObject.GetComponent<JarController>();
+        return (true, jar.JarId);
     }
 
     private void TriggleAction(Collider collider)
@@ -243,6 +270,16 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
         UIManager.Instance.GameplayPanel.GetElement(playerInfo.UserId).SetupDead(IsDead);
         animator.SetTrigger("IsDead");
     }
+        
+    public async UniTask Revive()
+    {
+        await UniTask.Delay(700);
+        if (model)
+        {
+            model.SetActive(true);
+        }
+        animator.SetTrigger("IsRevive");
+    }
 
     public void SetupDefault()
     {
@@ -251,8 +288,14 @@ public class CharacterController : MonoBehaviourPunCallbacks, IPunObservable
         IsDead = false;
         Score = 0;
         isAction = false;
+        speedmovement = Defualt_Movespeed;
         UIManager.Instance.GameplayPanel.GetElement(playerInfo.UserId).SetupDead(IsDead);
         animator.Play("Idle");
+    }
+
+    public void ShowSeekView(bool active)
+    {
+        canvas.SetActiveViewDistance(active);
     }
 
     public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)

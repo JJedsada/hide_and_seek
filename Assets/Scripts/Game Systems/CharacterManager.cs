@@ -21,6 +21,7 @@ public class CharacterManager
         var localPlayer = PhotonNetwork.Instantiate(PlayerPrefab.name, spawnPoint.position, Quaternion.identity);
         MainCharater = localPlayer.GetComponent<CharacterController>();
         MainCharater.SetupPlayerData(PhotonNetwork.LocalPlayer);
+        GameManager.Instance.cameraFollow.Initialize(MainCharater.transform);
     }
 
     public void AddCharacter(int viewId, CharacterController characterObject)

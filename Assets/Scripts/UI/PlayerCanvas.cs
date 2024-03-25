@@ -4,6 +4,7 @@ using UnityEngine;
 public class PlayerCanvas : MonoBehaviour
 {
     [SerializeField] private TMP_Text nameText;
+    [SerializeField] private GameObject viewRadius;
 
     private Camera camera;
 
@@ -25,5 +26,10 @@ public class PlayerCanvas : MonoBehaviour
     public void SetupDisplayOwner()
     {
         nameText.color = Color.green;
+    }
+
+    public void SetActiveViewDistance(bool active)
+    {
+        viewRadius.SetActive(active);
     }
 }

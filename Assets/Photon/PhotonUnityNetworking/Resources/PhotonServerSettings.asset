@@ -55,6 +55,9 @@ MonoBehaviour:
   - Rpc_ReceiveBreakDamage
   - Rpc_ReceiveWaittingState
   - Rpc_ReceiveUpdateScore
+  - Rpc_ReceiveActiveSkill
+  - Rpc_ReceiveRevive
+  - Rpc_ReceiveStarfall
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

@@ -4,6 +4,7 @@ using Photon.Realtime;
 using System;
 using System.Collections.Generic;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,6 +12,7 @@ public class GameplayPanel : Panel
 {
     [SerializeField] private Sprite punchIcon;
     [SerializeField] private Sprite hideIcon;
+    [SerializeField] private Sprite defualtIcon;
     [Space]
     [SerializeField] private TMP_Text roomnameText;
     [SerializeField] private TMP_Text readyText;
@@ -27,69 +29,73 @@ public class GameplayPanel : Panel
     [SerializeField] private PlayerElement playerElementPrefab;
     public RectTransform content;
     [Space]
-    [SerializeField] private Button startButton;
-    [SerializeField] private Button readyButton;
     [SerializeField] private Button leaveButton;
     [SerializeField] private Button actionButton;
     [Space]
-    [SerializeField] private GameObject lobbyStateElement;
+    [SerializeField] private GameplayLobbyStateElement lobbyStateElement;
+    public GameplaySkillElement skillElement;
     [SerializeField] private GameObject hidingStateElement;
     public FixedJoystick joystick;
 
-    public Dictionary<string, PlayerElement> playersInLobby { get; private set; } = new Dictionary<string, PlayerElement>();
+    public Dictionary<string, PlayerElement> PlayersInLobby { get; private set; } = new Dictionary<string, PlayerElement>();
 
-    public Action onStart;
-    public Action<bool> onReady;
-    public Action onLeave;
-    public Action onAction;
+    private Action onLeave;
+    private Action onAction;
+    private Action<int> onSkill;
 
     public override void Initialize()
     {
         leaveButton.onClick.RemoveAllListeners();
         leaveButton.onClick.AddListener(OnLeaveRoom);
-
-        startButton.onClick.RemoveAllListeners();
-        startButton.onClick.AddListener(OnStartGame);
-
-        readyButton.onClick.RemoveAllListeners();
-        readyButton.onClick.AddListener(OnReady);
-
         actionButton.onClick.RemoveAllListeners();
         actionButton.onClick.AddListener(OnAction);
+
+        lobbyStateElement.Initialize();
+    }
+
+    public void AddListener(Action OnStart, Action<bool> OnReady, Action OnLeave, Action OnAction, Action<int> OnSkill)
+    {
+        onLeave = OnLeave;
+        onAction = OnAction;
+        onSkill = OnSkill;
+
+        lobbyStateElement.AddListener(OnStart, OnReady, SetupReadyDisplay);
+        skillElement.AddListener(OnSkill);
     }
 
     public void EnterLobby()
     {
-        lobbyStateElement.SetActive(true);
+        lobbyStateElement.Open(); 
+        skillElement.Close();
         anounmentText.text = string.Empty;
+        actionImage.sprite = defualtIcon; 
+        countAction.gameObject.SetActive(false);
         SetupRoomName();
         SetupPlayers();
     }
 
     public void EnterGameplay()
     {
-        foreach (var element in playersInLobby.Values)
+        skillElement.SetupSkill();
+        foreach (var element in PlayersInLobby.Values)
         {
             bool seeker = GameManager.Instance.GameController.BeSeek(element.playerInfo.UserId);
             element.EnterGameplay(seeker);
         }
     }
 
+    public void ShowSkill(bool isShow)
+    {
+        skillElement.Close();
+        if (isShow)
+            skillElement.Open();
+    }
+
     #region Display
     private void SetupRoomName()
     {
         roomnameText.text = $"Room : {PhotonNetwork.CurrentRoom.Name}";
-
-        if (PhotonNetwork.IsMasterClient)
-        {
-            startButton.gameObject.SetActive(true);
-            readyButton.gameObject.SetActive(false);
-        }
-        else
-        {
-            startButton.gameObject.SetActive(false);
-            readyButton.gameObject.SetActive(true);
-        }
+        lobbyStateElement.SetupButton();
     }
 
     public void SetupRoundDisplay(int currentRound)
@@ -109,10 +115,10 @@ public class GameplayPanel : Panel
 
     public void SetupInteractButton(bool isInteract)
     {
-        if (actionButton.gameObject.activeSelf == isInteract)
+        if (actionButton.interactable == isInteract)
             return;
 
-        actionButton.gameObject.SetActive(isInteract);
+        actionButton.interactable = isInteract;
     }
 
     public void SetupPunchAction(int actionCount)
@@ -158,38 +164,38 @@ public class GameplayPanel : Panel
 
     public PlayerElement GetElement(string userId)
     {
-        return playersInLobby[userId];
+        return PlayersInLobby[userId];
     }
 
     public void AddPlayerDisplay(Player newPlayer)
     {
-        if (playersInLobby.ContainsKey(newPlayer.UserId))
+        if (PlayersInLobby.ContainsKey(newPlayer.UserId))
             return;
 
         var element = Instantiate(playerElementPrefab, content);
 
         element.Initialize(newPlayer);
-        playersInLobby.Add(newPlayer.UserId, element);
+        PlayersInLobby.Add(newPlayer.UserId, element);
     }
 
     public void RemovePlayerDisplay(Player player)
     {
-        if (!playersInLobby.TryGetValue(player.UserId, out var element))
+        if (!PlayersInLobby.TryGetValue(player.UserId, out var element))
         {
             return;
         }
         Destroy(element.gameObject);
-        playersInLobby.Remove(player.UserId);
+        PlayersInLobby.Remove(player.UserId);
     }
     #endregion
 
     #region State Display
     public void ShowRole(bool isSeek)
     {
-        lobbyStateElement.SetActive(false);
-        string anounText = "You are Hides";
+        lobbyStateElement.Close();
+        string anounText = "You are Hider";
         if (isSeek)
-            anounText = "You are Seek"; ;
+            anounText = "You are Finder"; ;
         anounmentText.text = anounText;
     }
 
@@ -203,7 +209,7 @@ public class GameplayPanel : Panel
             return;
         }
 
-        string hidingText = $"Round {GameManager.Instance.GameController.currentRound}/5\nStart Hiding"; ;
+        string hidingText = $"Round {GameManager.Instance.GameController.currentRound}/5\nStart Hiding";
         SetAnounmentText(hidingText);
     }
 
@@ -239,7 +245,7 @@ public class GameplayPanel : Panel
 
     private void ElementClearData()
     {
-        foreach (var element in playersInLobby.Values)
+        foreach (var element in PlayersInLobby.Values)
         {
             element.EnterLobby();
         }
@@ -247,22 +253,6 @@ public class GameplayPanel : Panel
     #endregion
 
     #region Event Action
-    private void OnStartGame()
-    {
-        onStart?.Invoke();
-    }
-
-    private void OnReady()
-    {
-        var localPlayer = PhotonNetwork.LocalPlayer;
-        var playerElement = playersInLobby[localPlayer.UserId];
-        bool isReady = !playerElement.IsReady;
-
-        SetupReadyDisplay(isReady);
-
-        onReady?.Invoke(isReady);
-    }
-
     public void SetupReadyDisplay(bool isReady)
     {
         string readyTxt = isReady ? "UnReady" : "Ready";
@@ -273,11 +263,11 @@ public class GameplayPanel : Panel
     {
         onLeave?.Invoke();
 
-        foreach (var person in playersInLobby.Values)
+        foreach (var person in PlayersInLobby.Values)
         {
             Destroy(person.gameObject);
         }
-        playersInLobby.Clear();
+        PlayersInLobby.Clear();
     }
 
     private void OnAction()

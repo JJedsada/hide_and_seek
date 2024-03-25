@@ -47,6 +47,9 @@ public class HuntingState : State
 
         void OnComplete()
         {
+            var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
+            mainCharacter.skillController.StarfallActive();
+
             if (PhotonNetwork.IsMasterClient)
                 RpcExcute.instance.Rpc_SendResult();
         }

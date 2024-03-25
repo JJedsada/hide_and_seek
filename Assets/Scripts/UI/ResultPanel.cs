@@ -14,7 +14,7 @@ public class ResultPanel : Panel
 
     private void ShowSummary()
     {
-        var playerInGame = UIManager.Instance.GameplayPanel.playersInLobby.Values;
+        var playerInGame = UIManager.Instance.GameplayPanel.PlayersInLobby.Values;
 
         foreach (var player in playerInGame)
         {
@@ -24,7 +24,7 @@ public class ResultPanel : Panel
 
     public void Clear()
     {
-        var playerInGame = UIManager.Instance.GameplayPanel.playersInLobby.Values;
+        var playerInGame = UIManager.Instance.GameplayPanel.PlayersInLobby.Values;
         var content = UIManager.Instance.GameplayPanel.content;
 
         foreach (var player in playerInGame)

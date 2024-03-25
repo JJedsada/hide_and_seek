@@ -65,9 +65,24 @@ public class RpcExcute : MonoBehaviourPunCallbacks
         base.photonView.RPC("Rpc_ReceiveBreakDamage", RpcTarget.All, playerData);
     }
 
+    public void Rpc_SendRevive(string playerData)
+    {
+        base.photonView.RPC("Rpc_ReceiveRevive", RpcTarget.All, playerData);
+    }
+
     public void Rpc_SendUpdateScore(int score)
     {
         base.photonView.RPC("Rpc_ReceiveUpdateScore", RpcTarget.All, PhotonNetwork.LocalPlayer, score);
+    }
+
+    public void Rpc_SendActiveSkill(string skillJsonData)
+    {
+        base.photonView.RPC("Rpc_ReceiveActiveSkill", RpcTarget.All, skillJsonData);
+    }
+
+    public void Rpc_SendStarfall(int jarId)
+    {
+        base.photonView.RPC("Rpc_ReceiveStarfall", RpcTarget.All, jarId);
     }
 
     #region Receive
@@ -127,6 +142,12 @@ public class RpcExcute : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
+    private void Rpc_ReceiveRevive(string playerDataTaking)
+    {
+        GameManager.Instance.GameController.Revived(playerDataTaking).Forget();
+    }
+
+    [PunRPC]
     private void Rpc_ReceiveWaittingState()
     {
         GameManager.Instance.ChangeState(StateType.Waitting); 
@@ -138,5 +159,16 @@ public class RpcExcute : MonoBehaviourPunCallbacks
         GameManager.Instance.GameController.UpdateScore(player.UserId, score);
     }
 
+    [PunRPC]
+    private void Rpc_ReceiveActiveSkill(string skillJson)
+    {
+        GameManager.Instance.GameController.PlayerActiveSkill(skillJson);
+    }
+
+    [PunRPC]
+    private void Rpc_ReceiveStarfall(int jarId)
+    {
+        GameManager.Instance.GameController.StarfallBreakingJar(jarId);
+    }
     #endregion
 }

@@ -19,8 +19,10 @@ public class GameManager : MonoBehaviour
     public GameController GameController = new();
 
     public CharacterManager CharacterManager = new();
-    public JarManager JarManager = new JarManager();
+    public JarManager JarManager = new();
     public StateController GameStateController = new();
+
+    public CameraFollow cameraFollow;
 
     private void Start()
     {
@@ -146,75 +148,16 @@ public class PrepareState : State
     }
 }
 
-public class HidingState : State
-{
-    private CountDown stateCountDown = new CountDown();
-    
-    public override void EnterState()
-    {
-        base.EnterState();
-        ShowHidingDisplay();
-        SetupMainCharacterState();
-    }
-    public override void ExitState()
-    {
-        var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
-        mainCharacter.ClearPlayerAction();
-    }
-
-    public override void Update()
-    {
-        base.Update();
-        float deltaTime = Time.deltaTime;
-        stateCountDown.Update(deltaTime);
-    }
-
-    public void ShowHidingDisplay()
-    {
-        GameManager.Instance.GameController.SetupHidingState();
-
-        stateCountDown.Start(GameConfig.HidingDuration);
-
-        stateCountDown.onUpdate = OnUpdate;
-        stateCountDown.onComplete = OnComplete;
-
-        void OnUpdate(float currentDuration)
-        {
-            UIManager.Instance.GameplayPanel.SetupStateDuration(currentDuration);
-        }
-
-        void OnComplete()
-        {
-            if (PhotonNetwork.IsMasterClient)
-                RpcExcute.instance.Rpc_SendHuntingState();
-        }       
-    }
-
-    private void SetupMainCharacterState()
-    {
-        var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
-        mainCharacter.SetupHidingState();
-
-        if (GameManager.Instance.GameController.IsSeek)
-        {
-            mainCharacter.SetMoveAble(false);
-            return;
-        }
-        mainCharacter.SetHideModel(true);
-        mainCharacter.SetMoveAble(true);
-        mainCharacter.OutHide();
-    }
-}
-
 public class ResultState : State
 {
     private CountDown stateCountDown = new CountDown();
 
     public override void EnterState()
     {
-        base.EnterState();
+        base.EnterState(); 
         SetupResultState();
-        UpdateScore();
+        SetupCharacter();
+        UpdateScore(); 
     }
 
     public override void Update()
@@ -226,6 +169,8 @@ public class ResultState : State
 
     public void SetupResultState()
     {
+        GameManager.Instance.JarManager.ClearSpray();
+        GameManager.Instance.JarManager.ClearScan();
         GameManager.Instance.GameController.SetupResultState();
  
         stateCountDown.Start(GameConfig.ShowResultDuration);
@@ -234,6 +179,7 @@ public class ResultState : State
 
         void OnComplete()
         {
+            GameManager.Instance.GameController.ActiveStarfall();
             GameManager.Instance.GameController.EndRound();
         }
     }
@@ -247,5 +193,18 @@ public class ResultState : State
             character.Score += 1;
             RpcExcute.instance.Rpc_SendUpdateScore(character.Score);
         }
+    }
+
+    private void SetupCharacter()
+    {
+        var mainCharacter = GameManager.Instance.CharacterManager.MainCharater;
+        if (GameManager.Instance.GameController.IsSeek)
+        {
+            mainCharacter.SetMoveAble(true);
+            return;
+        }
+        mainCharacter.SetHideModel(true);
+        mainCharacter.SetMoveAble(true);
+        mainCharacter.OutHide();
     }
 }
